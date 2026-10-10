@@ -1,19 +1,16 @@
-# Menggunakan base image Maven dengan JDK 17
-FROM eclipse-temurin:17-jdk-alpine AS build
+# Menggunakan base image Maven yang sudah dilengkapi JDK 17
+FROM maven:3.8.5-openjdk-17 AS build
 
 # Set direktori kerja di dalam kontainer
 WORKDIR /app
 
-# Salin semua file dari folder backend ke dalam kontainer
+# Salin seluruh isi folder backend ke dalam kontainer
 COPY . .
 
-# Beri izin eksekusi untuk Maven Wrapper
-RUN chmod +x ./mvnw
+# Jalankan proses build menggunakan perintah maven standar (mvn)
+RUN mvn clean package -DskipTests
 
-# Jalankan proses build Maven (menghasilkan file .jar)
-RUN ./mvnw clean package -DskipTests
-
-# Stage kedua untuk mengecilkan ukuran aplikasi
+# Stage kedua untuk menjalankan aplikasi (ukuran lebih kecil)
 FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
@@ -21,5 +18,8 @@ WORKDIR /app
 # Salin file .jar yang sudah jadi dari stage pertama
 COPY --from=build /app/target/*.jar app.jar
 
-EXPOSE 7860
-ENTRYPOINT ["java", "-Dserver.port=7860", "-jar", "app.jar"]
+# Buka port 8080
+EXPOSE 8080
+
+# Perintah untuk menjalankan Spring Boot
+ENTRYPOINT ["java", "-jar", "app.jar"]
