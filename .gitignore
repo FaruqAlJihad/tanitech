@@ -1,0 +1,11 @@
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Java / Backend
+backend/target/
+backend/.mvn/
+backend/*.class
+
+# OS
+.DS_Store
