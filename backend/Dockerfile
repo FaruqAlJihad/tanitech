@@ -21,8 +21,5 @@ WORKDIR /app
 # Salin file .jar yang sudah jadi dari stage pertama
 COPY --from=build /app/target/*.jar app.jar
 
-# Buka port 8080 (sesuai application.properties)
-EXPOSE 8080
-
-# Perintah untuk menjalankan Spring Boot
-ENTRYPOINT ["java", "-jar", "app.jar"]
+EXPOSE 7860
+ENTRYPOINT ["java", "-Dserver.port=7860", "-jar", "app.jar"]
