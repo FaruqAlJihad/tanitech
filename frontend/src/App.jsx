@@ -41,7 +41,7 @@ export default function App() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8080/api/predict', {
+      const response = await fetch('https://tanitech-production.up.railway.app/api/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
