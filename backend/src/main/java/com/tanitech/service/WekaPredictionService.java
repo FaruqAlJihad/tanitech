@@ -27,7 +27,7 @@ public class WekaPredictionService {
     public void init() {
         try {
             // 1. Memuat file model Weka dari folder resources/models/
-            ClassPathResource resource = new ClassPathResource("models/tanitech-final.model");
+            ClassPathResource resource = new ClassPathResource("tanitech-final.model");
             try (InputStream is = resource.getInputStream()) {
                 classifier = (Classifier) SerializationHelper.read(is);
             }
