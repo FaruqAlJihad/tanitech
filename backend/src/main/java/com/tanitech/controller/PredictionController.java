@@ -63,17 +63,19 @@ public class PredictionController {
         }
     }
 
-    // Fungsi pembantu untuk membuat objek WEKA
+   // Fungsi pembantu untuk membuat objek WEKA
     private DenseInstance createInstance(Instances dataset, double n, double p, double k, double ph, double moist) {
+        // PERHATIKAN: Jumlah atribut disesuaikan dengan yang ada di dataset.
         DenseInstance instance = new DenseInstance(dataset.numAttributes());
         instance.setDataset(dataset);
+        
+        // SESUAIKAN URUTAN INI DENGAN URUTAN KOLOM DI DATASET CSV ANDA
         instance.setValue(0, n);
         instance.setValue(1, p);
         instance.setValue(2, k);
-        instance.setValue(3, 27.0); // Suhu konstan
-        instance.setValue(4, moist);
-        instance.setValue(5, ph);
-        instance.setValue(6, 150.0); // Curah hujan konstan
+        instance.setValue(3, moist); 
+        instance.setValue(4, ph);
+        
         return instance;
     }
 
