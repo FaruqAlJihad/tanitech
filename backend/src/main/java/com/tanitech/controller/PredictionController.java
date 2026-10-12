@@ -18,23 +18,22 @@ import org.springframework.web.bind.annotation.RestController;
 import com.tanitech.dto.PredictionRequest;
 
 import jakarta.annotation.PostConstruct;
-import weka.classifiers.Classifier; // Menggunakan Classifier agar kompatibel dengan semua jenis algoritma (J48, RandomForest, dll)
+import weka.classifiers.Classifier;
 import weka.core.DenseInstance;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*") // CORS sudah terbuka untuk Vercel
+@CrossOrigin(origins = "*")
 public class PredictionController {
 
-    private Classifier model; // Diubah dari RandomTree menjadi Classifier
+    private Classifier model;
     private Instances modelHeader; 
 
     @PostConstruct
     public void init() {
         try {
-            // Mengarah pada file 63MB yang benar yang sekarang ada di GitHub/Railway
             ClassPathResource resource = new ClassPathResource("tanitech-final.model");
             try (InputStream is = resource.getInputStream()) {
                 Object[] loaded = (Object[]) SerializationHelper.readAll(is);
@@ -46,7 +45,6 @@ public class PredictionController {
                     }
                 }
                 
-                // Fallback jika WEKA menyimpan tanpa struktur array object penuh
                 if (model == null && loaded.length > 0 && loaded[0] instanceof Classifier) {
                     model = (Classifier) loaded[0];
                 }
@@ -63,26 +61,21 @@ public class PredictionController {
         }
     }
 
-   // Fungsi pembantu untuk membuat objek WEKA
+    // Fungsi pembantu untuk membuat objek WEKA dengan 5 fitur agar tidak Error Index 6
     private DenseInstance createInstance(Instances dataset, double n, double p, double k, double ph, double moist) {
-        // PERHATIKAN: Jumlah atribut disesuaikan dengan yang ada di dataset.
         DenseInstance instance = new DenseInstance(dataset.numAttributes());
         instance.setDataset(dataset);
-        
-        // SESUAIKAN URUTAN INI DENGAN URUTAN KOLOM DI DATASET CSV ANDA
         instance.setValue(0, n);
         instance.setValue(1, p);
         instance.setValue(2, k);
         instance.setValue(3, moist); 
         instance.setValue(4, ph);
-        
         return instance;
     }
 
     @PostMapping("/predict")
     public ResponseEntity<?> predict(@RequestBody PredictionRequest request) {
         try {
-            // Evaluasi ulang jika proses PostConstruct gagal
             if (model == null || modelHeader == null) {
                 return ResponseEntity.status(500).body(Map.of("error", "Model Weka belum siap."));
             }
@@ -90,34 +83,57 @@ public class PredictionController {
             Instances dataset = new Instances(modelHeader, 0);
             dataset.setClassIndex(dataset.numAttributes() - 1); 
 
-            // Menggunakan LinkedHashSet agar hasil prediksi tidak ada yang duplikat
             Set<String> recommendedCrops = new LinkedHashSet<>();
+            double moist = request.getMoisture() == null ? 50.0 : request.getMoisture();
 
-            // 1. PREDIKSI UTAMA (Berdasarkan input presisi)
-            double pred1 = model.classifyInstance(createInstance(dataset, 
-                request.getN(), request.getP(), request.getK(), request.getPh(), request.getMoisture() == null ? 50.0 : request.getMoisture()
-            ));
-            recommendedCrops.add(dataset.classAttribute().value((int) pred1));
+            // 1. Dapatkan distribusi probabilitas untuk input asli dari user
+            DenseInstance mainInstance = createInstance(dataset, request.getN(), request.getP(), request.getK(), request.getPh(), moist);
+            double[] probs = model.distributionForInstance(mainInstance);
 
-            // 2. PREDIKSI ALTERNATIF ATAS (Bagaimana jika tanah sedikit lebih subur +10%)
-            double pred2 = model.classifyInstance(createInstance(dataset, 
-                request.getN() * 1.10, request.getP() * 1.10, request.getK() * 1.10, request.getPh() * 1.05, request.getMoisture() == null ? 50.0 : request.getMoisture() * 1.10
-            ));
-            recommendedCrops.add(dataset.classAttribute().value((int) pred2));
+            // Ambil hingga 3 tanaman teratas dari algoritma jika model memiliki keraguan (probabilitas terpecah)
+            for (int i = 0; i < 3; i++) {
+                int maxIdx = -1;
+                double maxProb = -1.0;
+                for (int j = 0; j < probs.length; j++) {
+                    if (probs[j] > maxProb && !recommendedCrops.contains(dataset.classAttribute().value(j))) {
+                        maxProb = probs[j];
+                        maxIdx = j;
+                    }
+                }
+                if (maxIdx != -1 && maxProb > 0.0) {
+                    recommendedCrops.add(dataset.classAttribute().value(maxIdx));
+                }
+            }
 
-            // 3. PREDIKSI ALTERNATIF BAWAH (Bagaimana jika tanah sedikit lebih miskin -10%)
-            double pred3 = model.classifyInstance(createInstance(dataset, 
-                request.getN() * 0.90, request.getP() * 0.90, request.getK() * 0.90, request.getPh() * 0.95, request.getMoisture() == null ? 50.0 : request.getMoisture() * 0.90
-            ));
-            recommendedCrops.add(dataset.classAttribute().value((int) pred3));
+            // 2. Jika model sangat kaku (1 tanaman dominan 100%), paksa perluas variasi pencarian nutrisi
+            // Pencarian diperlebar mulai dari 10% hingga 80% pergeseran hara sampai minimal mendapat 3 tanaman
+            double multiplier = 1.10;
+            while (recommendedCrops.size() < 3 && multiplier <= 1.80) {
+                
+                // Cari tanaman untuk skenario tanah yang jauh lebih subur
+                double predUp = model.classifyInstance(createInstance(dataset, 
+                    request.getN() * multiplier, request.getP() * multiplier, request.getK() * multiplier, request.getPh(), moist
+                ));
+                recommendedCrops.add(dataset.classAttribute().value((int) predUp));
 
-            // Ubah Set kembali menjadi List untuk dikirimkan sebagai JSON Array
+                // Cari tanaman untuk skenario tanah yang jauh lebih tandus
+                double factorDown = 2.0 - multiplier; 
+                if (factorDown < 0.1) factorDown = 0.1; // Mencegah nilai turun di bawah 0
+                double predDown = model.classifyInstance(createInstance(dataset, 
+                    request.getN() * factorDown, request.getP() * factorDown, request.getK() * factorDown, request.getPh(), moist
+                ));
+                recommendedCrops.add(dataset.classAttribute().value((int) predDown));
+
+                multiplier += 0.15; // Lebarkan pencarian sebesar 15% setiap kali gagal mendapat tanaman baru
+            }
+
+            // Ubah Set kembali menjadi List untuk dikirimkan ke Vercel sebagai JSON Array
             List<String> finalPredictions = new ArrayList<>(recommendedCrops);
 
             return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "kelas_tanah", "Tanah Terklasifikasi Model Weka",
-                "tanaman_terpilih_list", finalPredictions // <-- Mengirimkan ARRAY/Daftar
+                "tanaman_terpilih_list", finalPredictions
             ));
 
         } catch (Exception e) {
