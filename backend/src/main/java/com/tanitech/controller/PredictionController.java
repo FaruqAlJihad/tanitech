@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,40 +18,47 @@ import org.springframework.web.bind.annotation.RestController;
 import com.tanitech.dto.PredictionRequest;
 
 import jakarta.annotation.PostConstruct;
-import weka.classifiers.trees.RandomTree;
+import weka.classifiers.Classifier; // Menggunakan Classifier agar kompatibel dengan semua jenis algoritma (J48, RandomForest, dll)
 import weka.core.DenseInstance;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") // CORS sudah terbuka untuk Vercel
 public class PredictionController {
 
-    private RandomTree model;
+    private Classifier model; // Diubah dari RandomTree menjadi Classifier
     private Instances modelHeader; 
 
     @PostConstruct
     public void init() {
         try {
-            InputStream is = getClass().getResourceAsStream("/138 V3.model");
-            if(is == null) {
-                is = getClass().getClassLoader().getResourceAsStream("138 V3.model");
-            }
-            if (is != null) {
+            // Mengarah pada file 63MB yang benar yang sekarang ada di GitHub/Railway
+            ClassPathResource resource = new ClassPathResource("tanitech-final.model");
+            try (InputStream is = resource.getInputStream()) {
                 Object[] loaded = (Object[]) SerializationHelper.readAll(is);
                 for (Object obj : loaded) {
-                    if (obj instanceof RandomTree) {
-                        model = (RandomTree) obj;
+                    if (obj instanceof Classifier) {
+                        model = (Classifier) obj;
                     } else if (obj instanceof Instances) {
                         modelHeader = (Instances) obj;
                     }
                 }
-                if (modelHeader != null) {
-                     System.out.println("✅ Model WEKA Multi-Prediksi Siap!");
+                
+                // Fallback jika WEKA menyimpan tanpa struktur array object penuh
+                if (model == null && loaded.length > 0 && loaded[0] instanceof Classifier) {
+                    model = (Classifier) loaded[0];
+                }
+
+                if (model != null) {
+                     System.out.println("✅ Model WEKA Multi-Prediksi di Controller Siap!");
+                } else {
+                     System.err.println("❌ Classifier tidak ditemukan di dalam file model.");
                 }
             }
         } catch (Exception e) {
+            System.err.println("❌ Gagal memuat model Weka di Controller: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -72,6 +80,7 @@ public class PredictionController {
     @PostMapping("/predict")
     public ResponseEntity<?> predict(@RequestBody PredictionRequest request) {
         try {
+            // Evaluasi ulang jika proses PostConstruct gagal
             if (model == null || modelHeader == null) {
                 return ResponseEntity.status(500).body(Map.of("error", "Model Weka belum siap."));
             }
