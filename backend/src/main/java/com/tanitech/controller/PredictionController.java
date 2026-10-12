@@ -2,10 +2,9 @@ package com.tanitech.controller;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.ResponseEntity;
@@ -44,13 +43,8 @@ public class PredictionController {
                         modelHeader = (Instances) obj;
                     }
                 }
-                
                 if (model == null && loaded.length > 0 && loaded[0] instanceof Classifier) {
                     model = (Classifier) loaded[0];
-                }
-
-                if (model != null) {
-                     System.out.println("✅ Model WEKA Multi-Prediksi di Controller Siap!");
                 }
             }
         } catch (Exception e) {
@@ -58,12 +52,11 @@ public class PredictionController {
         }
     }
 
-    // Fungsi normalisasi agar nilai riil (puluhan/ratusan) sinkron dengan dataset latih WEKA (skala 0.0 - 1.0)
     private DenseInstance createInstance(Instances dataset, double rawN, double rawP, double rawK, double rawPh, double rawMoist) {
         DenseInstance instance = new DenseInstance(dataset.numAttributes());
         instance.setDataset(dataset);
 
-        // Skala konversi dataset V6: N(max 200), P(max 200), K(max 500), Lembab(max 100), pH(max 14)
+        // Skala norm dataset: N(200), P(200), K(500), Lembab(100), pH(14)
         double normN = rawN > 1.0 ? Math.min(1.0, Math.max(0.0, rawN / 200.0)) : rawN;
         double normP = rawP > 1.0 ? Math.min(1.0, Math.max(0.0, rawP / 200.0)) : rawP;
         double normK = rawK > 1.0 ? Math.min(1.0, Math.max(0.0, rawK / 500.0)) : rawK;
@@ -74,7 +67,6 @@ public class PredictionController {
             if (i == dataset.classIndex()) continue;
             
             String attrName = dataset.attribute(i).name().toLowerCase();
-            
             if (attrName.equals("n") || attrName.contains("nitrogen")) {
                 instance.setValue(i, normN);
             } else if (attrName.equals("p") || attrName.contains("phosphor") || attrName.contains("fosfor")) {
@@ -92,6 +84,20 @@ public class PredictionController {
         return instance;
     }
 
+    // Class pembantu untuk mengurutkan probabilitas tanaman
+    static class CropProb implements Comparable<CropProb> {
+        String name;
+        double probability;
+        CropProb(String name, double probability) {
+            this.name = name;
+            this.probability = probability;
+        }
+        @Override
+        public int compareTo(CropProb o) {
+            return Double.compare(o.probability, this.probability); // Descending
+        }
+    }
+
     @PostMapping("/predict")
     public ResponseEntity<?> predict(@RequestBody PredictionRequest request) {
         try {
@@ -102,38 +108,47 @@ public class PredictionController {
             Instances dataset = new Instances(modelHeader, 0);
             dataset.setClassIndex(dataset.numAttributes() - 1); 
 
-            Set<String> recommendedCrops = new LinkedHashSet<>();
             double n = request.getN();
             double p = request.getP();
             double k = request.getK();
             double ph = request.getPh();
             double moist = request.getMoisture() == null ? 60.0 : request.getMoisture();
 
-            // 1. PREDIKSI UTAMA (Sesuai kondisi tanah pengguna saat ini)
-            double mainPred = model.classifyInstance(createInstance(dataset, n, p, k, ph, moist));
-            recommendedCrops.add(dataset.classAttribute().value((int) mainPred));
-
-            // 2. REKOMENDASI ALTERNATIF 1 (Kondisi tanah dengan sedikit peningkatan kesuburan/kompos)
-            double altPred1 = model.classifyInstance(createInstance(dataset, n * 1.15, p * 1.10, k * 1.15, ph, moist));
-            recommendedCrops.add(dataset.classAttribute().value((int) altPred1));
-
-            // 3. REKOMENDASI ALTERNATIF 2 (Kondisi tanah dengan sedikit penyesuaian hara kalium / fosfor)
-            double altPred2 = model.classifyInstance(createInstance(dataset, n * 0.85, p * 0.90, k * 0.85, ph, moist));
-            recommendedCrops.add(dataset.classAttribute().value((int) altPred2));
-
-            // 4. Jika masih kurang dari 2 tanaman unik, lakukan variasi kelembaban & pH toleransi
-            double step = 0.20;
-            while (recommendedCrops.size() < 3 && step <= 0.60) {
-                double altUp = model.classifyInstance(createInstance(dataset, n * (1.0 + step), p, k * (1.0 + step), ph + 0.3, moist * 1.1));
-                recommendedCrops.add(dataset.classAttribute().value((int) altUp));
-
-                double altDown = model.classifyInstance(createInstance(dataset, n * (1.0 - step), p, k * (1.0 - step), ph - 0.3, moist * 0.9));
-                recommendedCrops.add(dataset.classAttribute().value((int) altDown));
-                
-                step += 0.15;
+            DenseInstance mainInstance = createInstance(dataset, n, p, k, ph, moist);
+            
+            // Mengambil seluruh nilai probabilitas dari WEKA murni untuk input ini (tanpa menggeser nilai input)
+            double[] probDistributions = model.distributionForInstance(mainInstance);
+            
+            List<CropProb> allCrops = new ArrayList<>();
+            for (int i = 0; i < probDistributions.length; i++) {
+                // Hanya ambil tanaman yang benar-benar punya probabilitas terukur (bukan 0.0) di input ini
+                if (probDistributions[i] > 0.0) {
+                    allCrops.add(new CropProb(dataset.classAttribute().value(i), probDistributions[i]));
+                }
             }
 
-            List<String> finalPredictions = new ArrayList<>(recommendedCrops);
+            // Urutkan dari probabilitas paling masuk akal ke yang terkecil
+            Collections.sort(allCrops);
+
+            List<String> finalPredictions = new ArrayList<>();
+            
+            // Jika ada data relevan, masukkan maksimal 3. Jika hanya ada 1 data yang cocok, maka muncul 1 saja.
+            int limit = Math.min(3, allCrops.size());
+            for (int i = 0; i < limit; i++) {
+                finalPredictions.add(allCrops.get(i).name);
+            }
+
+            // Jika model J48 hanya mengembalikan 1 daun dominan absolut, dan Anda ingin toleransi tambahan organik
+            if (finalPredictions.size() < 2) {
+                 // Cari tanaman rekomendasi atas (+10%) & bawah (-10%) HANYA JIKA probabilitas dasar kosong melompong.
+                 double predUp = model.classifyInstance(createInstance(dataset, n * 1.1, p * 1.1, k * 1.1, ph, moist));
+                 String cropUp = dataset.classAttribute().value((int) predUp);
+                 if (!finalPredictions.contains(cropUp)) finalPredictions.add(cropUp);
+
+                 double predDown = model.classifyInstance(createInstance(dataset, n * 0.9, p * 0.9, k * 0.9, ph, moist));
+                 String cropDown = dataset.classAttribute().value((int) predDown);
+                 if (!finalPredictions.contains(cropDown)) finalPredictions.add(cropDown);
+            }
 
             return ResponseEntity.ok(Map.of(
                 "status", "success",
