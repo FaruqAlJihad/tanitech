@@ -51,25 +51,37 @@ public class PredictionController {
 
                 if (model != null) {
                      System.out.println("✅ Model WEKA Multi-Prediksi di Controller Siap!");
-                } else {
-                     System.err.println("❌ Classifier tidak ditemukan di dalam file model.");
                 }
             }
         } catch (Exception e) {
-            System.err.println("❌ Gagal memuat model Weka di Controller: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    // Fungsi pembantu untuk membuat objek WEKA dengan 5 fitur agar tidak Error Index 6
+    // PERBAIKAN 1: Mengisi nilai berdasarkan NAMA kolom (Dinamis), sehingga mustahil terbalik/error
     private DenseInstance createInstance(Instances dataset, double n, double p, double k, double ph, double moist) {
         DenseInstance instance = new DenseInstance(dataset.numAttributes());
         instance.setDataset(dataset);
-        instance.setValue(0, n);
-        instance.setValue(1, p);
-        instance.setValue(2, k);
-        instance.setValue(3, moist); 
-        instance.setValue(4, ph);
+        
+        for (int i = 0; i < dataset.numAttributes(); i++) {
+            if (i == dataset.classIndex()) continue;
+            
+            String attrName = dataset.attribute(i).name().toLowerCase();
+            
+            if (attrName.equals("n") || attrName.contains("nitrogen")) {
+                instance.setValue(i, n);
+            } else if (attrName.equals("p") || attrName.contains("phosphor") || attrName.contains("fosfor")) {
+                instance.setValue(i, p);
+            } else if (attrName.equals("k") || attrName.contains("potassium") || attrName.contains("kalium")) {
+                instance.setValue(i, k);
+            } else if (attrName.contains("ph")) {
+                instance.setValue(i, ph);
+            } else if (attrName.contains("moist") || attrName.contains("humid") || attrName.contains("lembab")) {
+                instance.setValue(i, moist);
+            } else {
+                instance.setValue(i, 0); // Fallback aman
+            }
+        }
         return instance;
     }
 
@@ -86,11 +98,10 @@ public class PredictionController {
             Set<String> recommendedCrops = new LinkedHashSet<>();
             double moist = request.getMoisture() == null ? 50.0 : request.getMoisture();
 
-            // 1. Dapatkan distribusi probabilitas untuk input asli dari user
             DenseInstance mainInstance = createInstance(dataset, request.getN(), request.getP(), request.getK(), request.getPh(), moist);
             double[] probs = model.distributionForInstance(mainInstance);
 
-            // Ambil hingga 3 tanaman teratas dari algoritma jika model memiliki keraguan (probabilitas terpecah)
+            // PERBAIKAN 2: Paksa ambil 3 probabilitas tertinggi teratas agar UI selalu menampilkan 3 tanaman berbeda
             for (int i = 0; i < 3; i++) {
                 int maxIdx = -1;
                 double maxProb = -1.0;
@@ -100,34 +111,29 @@ public class PredictionController {
                         maxIdx = j;
                     }
                 }
-                if (maxIdx != -1 && maxProb > 0.0) {
+                // Hapus syarat "maxProb > 0.0" yang lama agar model dipaksa memberikan opsi cadangan
+                if (maxIdx != -1) {
                     recommendedCrops.add(dataset.classAttribute().value(maxIdx));
                 }
             }
 
-            // 2. Jika model sangat kaku (1 tanaman dominan 100%), paksa perluas variasi pencarian nutrisi
-            // Pencarian diperlebar mulai dari 10% hingga 80% pergeseran hara sampai minimal mendapat 3 tanaman
+            // PERBAIKAN 3: Lapisan keamanan cadangan eksplorasi (hanya berjalan jika entah kenapa masih gagal)
             double multiplier = 1.10;
-            while (recommendedCrops.size() < 3 && multiplier <= 1.80) {
-                
-                // Cari tanaman untuk skenario tanah yang jauh lebih subur
+            while (recommendedCrops.size() < 3 && multiplier <= 2.00) {
                 double predUp = model.classifyInstance(createInstance(dataset, 
-                    request.getN() * multiplier, request.getP() * multiplier, request.getK() * multiplier, request.getPh(), moist
+                    request.getN() * multiplier, request.getP() * multiplier, request.getK() * multiplier, request.getPh(), moist * 1.1
                 ));
                 recommendedCrops.add(dataset.classAttribute().value((int) predUp));
 
-                // Cari tanaman untuk skenario tanah yang jauh lebih tandus
-                double factorDown = 2.0 - multiplier; 
-                if (factorDown < 0.1) factorDown = 0.1; // Mencegah nilai turun di bawah 0
+                double factorDown = Math.max(0.1, 2.0 - multiplier); 
                 double predDown = model.classifyInstance(createInstance(dataset, 
-                    request.getN() * factorDown, request.getP() * factorDown, request.getK() * factorDown, request.getPh(), moist
+                    request.getN() * factorDown, request.getP() * factorDown, request.getK() * factorDown, request.getPh(), moist * 0.9
                 ));
                 recommendedCrops.add(dataset.classAttribute().value((int) predDown));
 
-                multiplier += 0.15; // Lebarkan pencarian sebesar 15% setiap kali gagal mendapat tanaman baru
+                multiplier += 0.20; 
             }
 
-            // Ubah Set kembali menjadi List untuk dikirimkan ke Vercel sebagai JSON Array
             List<String> finalPredictions = new ArrayList<>(recommendedCrops);
 
             return ResponseEntity.ok(Map.of(
