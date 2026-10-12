@@ -58,10 +58,17 @@ public class PredictionController {
         }
     }
 
-    // PERBAIKAN 1: Mengisi nilai berdasarkan NAMA kolom (Dinamis), sehingga mustahil terbalik/error
-    private DenseInstance createInstance(Instances dataset, double n, double p, double k, double ph, double moist) {
+    // Fungsi normalisasi agar nilai riil (puluhan/ratusan) sinkron dengan dataset latih WEKA (skala 0.0 - 1.0)
+    private DenseInstance createInstance(Instances dataset, double rawN, double rawP, double rawK, double rawPh, double rawMoist) {
         DenseInstance instance = new DenseInstance(dataset.numAttributes());
         instance.setDataset(dataset);
+
+        // Skala konversi dataset V6: N(max 200), P(max 200), K(max 500), Lembab(max 100), pH(max 14)
+        double normN = rawN > 1.0 ? Math.min(1.0, Math.max(0.0, rawN / 200.0)) : rawN;
+        double normP = rawP > 1.0 ? Math.min(1.0, Math.max(0.0, rawP / 200.0)) : rawP;
+        double normK = rawK > 1.0 ? Math.min(1.0, Math.max(0.0, rawK / 500.0)) : rawK;
+        double normMoist = rawMoist > 1.0 ? Math.min(1.0, Math.max(0.0, rawMoist / 100.0)) : rawMoist;
+        double normPh = rawPh > 1.0 ? Math.min(1.0, Math.max(0.0, rawPh / 14.0)) : rawPh;
         
         for (int i = 0; i < dataset.numAttributes(); i++) {
             if (i == dataset.classIndex()) continue;
@@ -69,17 +76,17 @@ public class PredictionController {
             String attrName = dataset.attribute(i).name().toLowerCase();
             
             if (attrName.equals("n") || attrName.contains("nitrogen")) {
-                instance.setValue(i, n);
+                instance.setValue(i, normN);
             } else if (attrName.equals("p") || attrName.contains("phosphor") || attrName.contains("fosfor")) {
-                instance.setValue(i, p);
+                instance.setValue(i, normP);
             } else if (attrName.equals("k") || attrName.contains("potassium") || attrName.contains("kalium")) {
-                instance.setValue(i, k);
+                instance.setValue(i, normK);
             } else if (attrName.contains("ph")) {
-                instance.setValue(i, ph);
+                instance.setValue(i, normPh);
             } else if (attrName.contains("moist") || attrName.contains("humid") || attrName.contains("lembab")) {
-                instance.setValue(i, moist);
+                instance.setValue(i, normMoist);
             } else {
-                instance.setValue(i, 0); // Fallback aman
+                instance.setValue(i, 0.5);
             }
         }
         return instance;
@@ -96,42 +103,34 @@ public class PredictionController {
             dataset.setClassIndex(dataset.numAttributes() - 1); 
 
             Set<String> recommendedCrops = new LinkedHashSet<>();
-            double moist = request.getMoisture() == null ? 50.0 : request.getMoisture();
+            double n = request.getN();
+            double p = request.getP();
+            double k = request.getK();
+            double ph = request.getPh();
+            double moist = request.getMoisture() == null ? 60.0 : request.getMoisture();
 
-            DenseInstance mainInstance = createInstance(dataset, request.getN(), request.getP(), request.getK(), request.getPh(), moist);
-            double[] probs = model.distributionForInstance(mainInstance);
+            // 1. PREDIKSI UTAMA (Sesuai kondisi tanah pengguna saat ini)
+            double mainPred = model.classifyInstance(createInstance(dataset, n, p, k, ph, moist));
+            recommendedCrops.add(dataset.classAttribute().value((int) mainPred));
 
-            // PERBAIKAN 2: Paksa ambil 3 probabilitas tertinggi teratas agar UI selalu menampilkan 3 tanaman berbeda
-            for (int i = 0; i < 3; i++) {
-                int maxIdx = -1;
-                double maxProb = -1.0;
-                for (int j = 0; j < probs.length; j++) {
-                    if (probs[j] > maxProb && !recommendedCrops.contains(dataset.classAttribute().value(j))) {
-                        maxProb = probs[j];
-                        maxIdx = j;
-                    }
-                }
-                // Hapus syarat "maxProb > 0.0" yang lama agar model dipaksa memberikan opsi cadangan
-                if (maxIdx != -1) {
-                    recommendedCrops.add(dataset.classAttribute().value(maxIdx));
-                }
-            }
+            // 2. REKOMENDASI ALTERNATIF 1 (Kondisi tanah dengan sedikit peningkatan kesuburan/kompos)
+            double altPred1 = model.classifyInstance(createInstance(dataset, n * 1.15, p * 1.10, k * 1.15, ph, moist));
+            recommendedCrops.add(dataset.classAttribute().value((int) altPred1));
 
-            // PERBAIKAN 3: Lapisan keamanan cadangan eksplorasi (hanya berjalan jika entah kenapa masih gagal)
-            double multiplier = 1.10;
-            while (recommendedCrops.size() < 3 && multiplier <= 2.00) {
-                double predUp = model.classifyInstance(createInstance(dataset, 
-                    request.getN() * multiplier, request.getP() * multiplier, request.getK() * multiplier, request.getPh(), moist * 1.1
-                ));
-                recommendedCrops.add(dataset.classAttribute().value((int) predUp));
+            // 3. REKOMENDASI ALTERNATIF 2 (Kondisi tanah dengan sedikit penyesuaian hara kalium / fosfor)
+            double altPred2 = model.classifyInstance(createInstance(dataset, n * 0.85, p * 0.90, k * 0.85, ph, moist));
+            recommendedCrops.add(dataset.classAttribute().value((int) altPred2));
 
-                double factorDown = Math.max(0.1, 2.0 - multiplier); 
-                double predDown = model.classifyInstance(createInstance(dataset, 
-                    request.getN() * factorDown, request.getP() * factorDown, request.getK() * factorDown, request.getPh(), moist * 0.9
-                ));
-                recommendedCrops.add(dataset.classAttribute().value((int) predDown));
+            // 4. Jika masih kurang dari 2 tanaman unik, lakukan variasi kelembaban & pH toleransi
+            double step = 0.20;
+            while (recommendedCrops.size() < 3 && step <= 0.60) {
+                double altUp = model.classifyInstance(createInstance(dataset, n * (1.0 + step), p, k * (1.0 + step), ph + 0.3, moist * 1.1));
+                recommendedCrops.add(dataset.classAttribute().value((int) altUp));
 
-                multiplier += 0.20; 
+                double altDown = model.classifyInstance(createInstance(dataset, n * (1.0 - step), p, k * (1.0 - step), ph - 0.3, moist * 0.9));
+                recommendedCrops.add(dataset.classAttribute().value((int) altDown));
+                
+                step += 0.15;
             }
 
             List<String> finalPredictions = new ArrayList<>(recommendedCrops);
