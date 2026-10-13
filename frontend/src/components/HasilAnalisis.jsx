@@ -4,7 +4,6 @@ import { databaseSayuranNusantara } from '../data/sayuran';
 export default function HasilAnalisis({ result, formData, handleReset }) {
   if (!result) return null;
 
-  // Fungsi konversi sederhana hasil panen
   const konversiHasil = (teksHasil) => {
     if (!teksHasil || teksHasil.includes("Menunggu")) return "Estimasi belum tersedia";
     const angkaArray = teksHasil.match(/[\d.]+/g);
@@ -14,7 +13,6 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     return `${min} - ${max} kg / 100 m² / musim`;
   };
 
-  // Fungsi untuk mengecek apakah input user masuk persis ke dalam rentang "min - max" di database
   const cekDalamRentang = (nilaiString, inputUser) => {
     if (!nilaiString || nilaiString === "-") return false;
     const angka = nilaiString.match(/[\d.]+/g);
@@ -27,10 +25,8 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     return false;
   };
 
-  // 1. Ambil data tanaman dari WEKA
   let daftarTampil = [...(result.rekomendasi_tanaman || [])];
 
-  // 2. Cari tanaman di database lokal yang RENTANGNYA 100% SESUAI dengan input
   const tanamanSesuaiData = databaseSayuranNusantara.filter(tanaman => {
     const nSesuai = cekDalamRentang(tanaman.kebutuhan_n, formData.n);
     const pSesuai = cekDalamRentang(tanaman.kebutuhan_p, formData.p);
@@ -41,7 +37,6 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     return nSesuai && pSesuai && kSesuai && phSesuai && moistSesuai;
   });
 
-  // Gabungkan ke daftar tampil jika WEKA melewatkannya
   tanamanSesuaiData.forEach(tanamanStatis => {
     const sudahAda = daftarTampil.some(t => t.nama.toLowerCase() === tanamanStatis.nama.toLowerCase());
     if (!sudahAda) {
@@ -49,7 +44,7 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     }
   });
 
-  // Urutkan (WEKA di atas, Database di bawah)
+  // Urutkan (WEKA di atas, Database di bawah) untuk logika program, tapi tampilannya sama
   daftarTampil.sort((a, b) => {
     if (a.is_fallback_db && !b.is_fallback_db) return 1;
     if (!a.is_fallback_db && b.is_fallback_db) return -1;
@@ -93,21 +88,16 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
         </div>
 
         {daftarTampil.map((tanaman, index) => (
-          <div key={index} className={`bg-white rounded-2xl md:rounded-3xl shadow-2xl border ${tanaman.is_fallback_db ? 'border-blue-300' : 'border-emerald-100'} overflow-hidden mb-8 relative`}>
+          <div key={index} className="bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-emerald-100 overflow-hidden mb-8 relative">
             
-            {/* Label Penanda Darimana Rekomendasi Ini Berasal */}
-            <div className={`absolute top-0 right-0 text-xs md:text-sm font-bold px-4 py-1.5 rounded-bl-xl text-white shadow-md z-10 ${tanaman.is_fallback_db ? 'bg-blue-600' : 'bg-emerald-600'}`}>
-               {tanaman.is_fallback_db ? 'Sesuai Database Tanaman' : 'Rekomendasi Cerdas WEKA'}
-            </div>
-
-            <div className={`bg-gradient-to-r ${tanaman.is_fallback_db ? 'from-blue-600 to-indigo-700' : 'from-emerald-600 to-teal-700'} p-6 md:p-8 text-white flex flex-col md:flex-row items-center gap-4 md:gap-6 pt-10`}>
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 md:p-8 text-white flex flex-col md:flex-row items-center gap-4 md:gap-6">
               <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 rounded-2xl flex items-center justify-center text-5xl md:text-6xl shadow-inner backdrop-blur-sm">
                 {tanaman.ikon || '🌱'}
               </div>
               <div className="flex-1 text-center md:text-left">
                 <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3 mb-2">
                   <h3 className="text-3xl md:text-4xl font-black tracking-tight">{tanaman.nama_lokal || tanaman.nama}</h3>
-                  <span className="bg-emerald-900/40 text-emerald-100 font-mono text-xs md:text-sm px-3 py-1 rounded-lg border border-emerald-400/30">
+                  <span className="bg-black/20 text-white font-mono text-xs md:text-sm px-3 py-1 rounded-lg border border-white/30">
                     English Name: {tanaman.nama}
                   </span>
                 </div>
