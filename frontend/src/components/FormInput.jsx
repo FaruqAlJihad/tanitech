@@ -8,7 +8,8 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
       return;
     }
     const parsed = parseFloat(value);
-    if (isNaN(parsed) || parsed < 0 || parsed > 100000) {
+    // Mengubah batas maksimal validasi dari 100000 menjadi 200
+    if (isNaN(parsed) || parsed < 0 || parsed > 200) {
       return;
     }
     handleChange(e);
@@ -35,11 +36,11 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
             name="n" 
             step="any"
             min="0" 
-            max="100000" 
+            max="200" 
             value={formData.n} 
             onChange={handleNutrientChange} 
             required 
-            placeholder="0.00 - 100000.00"
+            placeholder="0.00 - 200.00"
             className="w-full px-5 py-4 bg-emerald-50/50 border-2 border-emerald-200 rounded-xl text-lg font-bold text-emerald-900 focus:bg-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all shadow-inner group-hover:border-emerald-400" 
           />
         </div>
@@ -54,11 +55,11 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
             name="p" 
             step="any"
             min="0" 
-            max="100000" 
+            max="200" 
             value={formData.p} 
             onChange={handleNutrientChange} 
             required 
-            placeholder="0.00 - 100000.00"
+            placeholder="0.00 - 200.00"
             className="w-full px-5 py-4 bg-teal-50/50 border-2 border-teal-200 rounded-xl text-lg font-bold text-teal-900 focus:bg-white focus:ring-4 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-inner group-hover:border-teal-400" 
           />
         </div>
@@ -73,11 +74,11 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
             name="k" 
             step="any"
             min="0" 
-            max="100000" 
+            max="200" 
             value={formData.k} 
             onChange={handleNutrientChange} 
             required 
-            placeholder="0.00 - 100000.00"
+            placeholder="0.00 - 200.00"
             className="w-full px-5 py-4 bg-cyan-50/50 border-2 border-cyan-200 rounded-xl text-lg font-bold text-cyan-900 focus:bg-white focus:ring-4 focus:ring-cyan-500/30 focus:border-cyan-500 outline-none transition-all shadow-inner group-hover:border-cyan-400" 
           />
         </div>
