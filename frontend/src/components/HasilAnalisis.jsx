@@ -73,7 +73,8 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
                     <tbody className="divide-y divide-gray-200">
                       <tr className="bg-gray-50">
                         <td className="py-4 px-6 font-bold text-gray-600 w-1/3">Kondisi Tanah</td>
-                        <td className="py-4 px-6 text-gray-800">Berdasarkan analisis WEKA (N: {formData.n}, P: {formData.p}, K: {formData.k}, pH: {formData.ph})</td>
+                        {/* BARIS INI YANG DIUBAH */}
+                        <td className="py-4 px-6 text-gray-800">Berdasarkan analisis WEKA (N: {formData.n}, P: {formData.p}, K: {formData.k}, pH: {formData.ph}, Kelembaban: {formData.moisture}%)</td>
                       </tr>
                       <tr className="bg-amber-50/30">
                         <td className="py-4 px-6 font-bold text-amber-800">Jenis Pupuk</td>
