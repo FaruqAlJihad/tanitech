@@ -13,6 +13,7 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     return `${min} - ${max} kg / 100 m² / musim`;
   };
 
+  // Fungsi pengecekan batas mutlak (Strict Boundary Check)
   const cekDalamRentang = (nilaiString, inputUser) => {
     if (!nilaiString || nilaiString === "-") return false;
     const angka = nilaiString.match(/[\d.]+/g);
@@ -20,14 +21,29 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
       const min = parseFloat(angka[0]);
       const max = parseFloat(angka[1]);
       const val = parseFloat(inputUser);
+      // Validasi mutlak: input tidak boleh meleset sedikitpun dari min/max
       return val >= min && val <= max;
     }
     return false;
   };
 
-  let daftarTampil = [...(result.rekomendasi_tanaman || [])];
+  // 1. Ambil rekomendasi kotor dari WEKA (Frontend menerima data utuh yang dipetakan backend ke databaseSayuranNusantara)
+  let rekomendasiWeka = [...(result.rekomendasi_tanaman || [])];
 
-  const tanamanSesuaiData = databaseSayuranNusantara.filter(tanaman => {
+  // 2. ELIMINASI KETAT: Buang semua tanaman WEKA yang satu unsur haranya saja meleset dari database!
+  let daftarTampil = rekomendasiWeka.filter(tanaman => {
+    const nSesuai = cekDalamRentang(tanaman.kebutuhan_n, formData.n);
+    const pSesuai = cekDalamRentang(tanaman.kebutuhan_p, formData.p);
+    const kSesuai = cekDalamRentang(tanaman.kebutuhan_k, formData.k);
+    const phSesuai = cekDalamRentang(tanaman.ph_optimal, formData.ph);
+    const moistSesuai = !formData.moisture || cekDalamRentang(tanaman.kelembaban, formData.moisture);
+    
+    // Harus mematuhi kelima parameter secara sempurna
+    return nSesuai && pSesuai && kSesuai && phSesuai && moistSesuai;
+  });
+
+  // 3. TAMBAHKAN KEMBALI: Cari tanaman lain di database yang sempurna sesuai 100% tapi terlewatkan oleh WEKA
+  const tanamanDatabaseMurni = databaseSayuranNusantara.filter(tanaman => {
     const nSesuai = cekDalamRentang(tanaman.kebutuhan_n, formData.n);
     const pSesuai = cekDalamRentang(tanaman.kebutuhan_p, formData.p);
     const kSesuai = cekDalamRentang(tanaman.kebutuhan_k, formData.k);
@@ -37,25 +53,21 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     return nSesuai && pSesuai && kSesuai && phSesuai && moistSesuai;
   });
 
-  tanamanSesuaiData.forEach(tanamanStatis => {
+  // Gabungkan tanpa duplikat
+  tanamanDatabaseMurni.forEach(tanamanStatis => {
     const sudahAda = daftarTampil.some(t => t.nama.toLowerCase() === tanamanStatis.nama.toLowerCase());
     if (!sudahAda) {
-      daftarTampil.push({ ...tanamanStatis, is_fallback_db: true });
+      daftarTampil.push(tanamanStatis);
     }
   });
 
-  daftarTampil.sort((a, b) => {
-    if (a.is_fallback_db && !b.is_fallback_db) return 1;
-    if (!a.is_fallback_db && b.is_fallback_db) return -1;
-    return 0;
-  });
-
+  // Jika setelah penyaringan mutlak hasilnya kosong
   if (daftarTampil.length === 0) {
     return (
       <div className="animate-fade-in-up mt-6">
         <div className="bg-white rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-xl border-t-8 border-red-500 text-center">
           <span className="text-5xl md:text-6xl block mb-4">🏜️</span>
-          <h2 className="text-2xl md:text-3xl font-black text-red-800 mb-6">Status: Data tanaman tidak ada.</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-red-800 mb-6">Status: Lahan Ekstrem / Tidak Ada Data</h2>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 rounded-2xl p-4 md:p-6 mb-8 text-left">
             <div><p className="text-xs font-bold text-gray-500 uppercase">Nitrogen (N)</p><p className="text-xl font-black">{formData.n} <span className="text-sm">mg</span></p></div>
@@ -65,7 +77,7 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
           </div>
 
           <div className="bg-red-50 text-red-800 px-4 md:px-6 py-4 rounded-xl font-semibold mb-6 text-sm md:text-base">
-            Sistem tidak menemukan rekomendasi tanaman yang valid berdasarkan model WEKA maupun Database Tanaman.
+            Tidak ada satu pun komoditas di database yang sanggup mentolerir batas ekstrem kombinasi N, P, K, pH, dan Kelembaban ini secara bersamaan.
           </div>
           
           <button onClick={handleReset} className="w-full md:w-auto bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 px-8 rounded-xl transition-colors">
