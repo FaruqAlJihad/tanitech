@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function DaftarTanaman({ dataset }) {
-  const [search, setSearch] = useState('');
+  // Mengambil nilai pencarian yang tersimpan di sesi browser (jika ada)
+  const [search, setSearch] = useState(() => {
+    return sessionStorage.getItem('searchTanaman') || '';
+  });
+
+  // Menyimpan nilai pencarian ke sesi browser setiap kali ada ketikan baru
+  useEffect(() => {
+    sessionStorage.setItem('searchTanaman', search);
+  }, [search]);
 
   const filteredData = dataset.filter((item) => 
     item.nama.toLowerCase().includes(search.toLowerCase()) || 
