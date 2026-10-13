@@ -30,11 +30,11 @@ export default function App() {
     const kVal = parseFloat(formData.k);
 
     if (
-      isNaN(nVal) || nVal < 0 || nVal > 100000 ||
-      isNaN(pVal) || pVal < 0 || pVal > 100000 ||
-      isNaN(kVal) || kVal < 0 || kVal > 100000
+      isNaN(nVal) || nVal < 0 || nVal > 200 ||
+      isNaN(pVal) || pVal < 0 || pVal > 200 ||
+      isNaN(kVal) || kVal < 0 || kVal > 200
     ) {
-      setErrorMessage('Nilai Nitrogen (N), Fosfor (P), dan Kalium (K) harus berupa angka antara 0 hingga 100.000 mg/kg.');
+      setErrorMessage('Nilai Nitrogen (N), Fosfor (P), dan Kalium (K) harus berupa angka antara 0 hingga 200.00 mg/kg.');
       return;
     }
 
