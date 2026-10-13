@@ -8,11 +8,25 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
       return;
     }
     const parsed = parseFloat(value);
-    // Mengubah batas maksimal validasi dari 100000 menjadi 200
     if (isNaN(parsed) || parsed < 0 || parsed > 200) {
       return;
     }
     handleChange(e);
+  };
+
+  // Fungsi untuk menentukan warna dinamis berdasarkan nilai pH (0-14)
+  const getPHColor = (phValue) => {
+    const ph = parseFloat(phValue);
+    if (ph <= 2) return '#c40026'; // Merah tua
+    if (ph <= 4) return '#f45a00'; // Oranye
+    if (ph <= 5) return '#f8b100'; // Kuning tua
+    if (ph <= 6) return '#e9d600'; // Kuning kehijauan
+    if (ph <= 7) return '#7fc400'; // Hijau muda (Netral)
+    if (ph <= 8) return '#00a831'; // Hijau tua
+    if (ph <= 9) return '#00907a'; // Biru kehijauan
+    if (ph <= 11) return '#0058b8'; // Biru
+    if (ph <= 12) return '#0025a3'; // Biru tua
+    return '#10006b'; // Biru sangat gelap/Ungu
   };
 
   return (
@@ -20,7 +34,7 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
       
       <div className="text-center mb-8">
         <h2 className="text-3xl font-extrabold text-emerald-800 flex justify-center items-center gap-3">
-          <span className="text-4xl text-emerald-600">🌿</span> Parameter Uji Tanah <span className="text-4xl text-emerald-600">🎛️</span>
+          Parameter Uji Tanah
         </h2>
         <p className="text-emerald-600 font-medium mt-2">Masukkan hasil pengujian metrik tanah lahan pertanian Anda untuk rekomendasi terbaik.</p>
       </div>
@@ -28,7 +42,7 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="group">
           <label className="block text-sm font-black text-emerald-800 mb-2 uppercase tracking-wider flex items-center gap-2">
-            <span className="text-xl">💨</span> Nitrogen (N) 
+            Nitrogen (N) 
             <span className="text-[10px] normal-case font-bold text-emerald-700 bg-emerald-200/60 px-2 py-0.5 rounded-md ml-auto">mg/kg</span>
           </label>
           <input 
@@ -47,7 +61,7 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
 
         <div className="group">
           <label className="block text-sm font-black text-teal-800 mb-2 uppercase tracking-wider flex items-center gap-2">
-            <span className="text-xl">✨</span> Fosfor (P)
+            Fosfor (P)
             <span className="text-[10px] normal-case font-bold text-teal-700 bg-teal-200/60 px-2 py-0.5 rounded-md ml-auto">mg/kg</span>
           </label>
           <input 
@@ -66,7 +80,7 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
 
         <div className="group">
           <label className="block text-sm font-black text-cyan-800 mb-2 uppercase tracking-wider flex items-center gap-2">
-            <span className="text-xl">🪨</span> Kalium (K)
+            Kalium (K)
             <span className="text-[10px] normal-case font-bold text-cyan-700 bg-cyan-200/60 px-2 py-0.5 rounded-md ml-auto">mg/kg</span>
           </label>
           <input 
@@ -88,15 +102,23 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
         <div>
           <div className="flex justify-between items-end mb-4">
             <label className="text-sm font-black text-emerald-800 uppercase tracking-wider flex items-center gap-2">
-              <span className="text-xl">🧪</span> Tingkat pH Tanah
+              Tingkat pH Tanah
             </label>
-            <span className="bg-white px-4 py-1.5 rounded-lg text-emerald-700 font-bold shadow-sm border border-emerald-100">{formData.ph}</span>
+            <span 
+              className="px-4 py-1.5 rounded-lg font-bold shadow-sm border border-emerald-100 text-white transition-colors"
+              style={{ backgroundColor: getPHColor(formData.ph) }}
+            >
+              {formData.ph}
+            </span>
           </div>
           <input 
             type="range" name="ph" min="0" max="14" step="0.1" value={formData.ph} onChange={handleChange} 
-            className="w-full h-2 bg-emerald-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" 
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer" 
+            style={{
+              background: `linear-gradient(to right, #c40026 0%, #f45a00 21%, #f8b100 35%, #e9d600 42%, #7fc400 50%, #00a831 57%, #00907a 64%, #0058b8 78%, #0025a3 85%, #10006b 100%)`
+            }}
           />
-          <div className="flex justify-between text-xs font-bold text-emerald-600/60 mt-2">
+          <div className="flex justify-between text-xs font-bold text-gray-500 mt-2">
             <span>ASAM (0)</span><span>NETRAL (7)</span><span>BASA (14)</span>
           </div>
         </div>
