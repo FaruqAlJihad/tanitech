@@ -3,18 +3,17 @@ import React, { useState } from 'react';
 export default function DaftarTanaman({ dataset }) {
   const [search, setSearch] = useState('');
 
-  // Fitur Filter/Pencarian
   const filteredData = dataset.filter((item) => 
     item.nama.toLowerCase().includes(search.toLowerCase()) || 
     item.nama_lokal.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="bg-white/90 backdrop-blur-md rounded-3xl p-8 shadow-xl border border-emerald-100 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-emerald-800">Database Tanaman Weka</h2>
-          <p className="text-emerald-600 font-medium">Dataset referensi komoditas pertanian sistem TaniTech.</p>
+    <div className="bg-white/90 backdrop-blur-md rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl border border-emerald-100 animate-fade-in-up">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
+        <div className="w-full md:w-auto">
+          <h2 className="text-2xl md:text-3xl font-black text-emerald-800">Database Tanaman Weka</h2>
+          <p className="text-sm md:text-base text-emerald-600 font-medium">Dataset referensi komoditas pertanian sistem TaniTech.</p>
         </div>
         
         <div className="relative w-full md:w-72">
@@ -29,36 +28,34 @@ export default function DaftarTanaman({ dataset }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-emerald-100 shadow-sm">
-        <table className="w-full text-left border-collapse">
+      <div className="overflow-x-auto rounded-xl border border-emerald-100 shadow-sm w-full">
+        <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
             <tr className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
-              <th className="py-4 px-6 font-bold uppercase tracking-wider text-sm border-b border-emerald-700">English Name (WEKA)</th>
-              <th className="py-4 px-6 font-bold uppercase tracking-wider text-sm border-b border-emerald-700">Nama Tanaman</th>
-              {/* Judul kolom diperbarui agar tidak disalahpahami sebagai standar mutlak */}
-              <th className="py-4 px-6 font-bold uppercase tracking-wider text-sm border-b border-emerald-700">Rentang Toleransi (Dataset)</th>
-              <th className="py-4 px-6 font-bold uppercase tracking-wider text-sm border-b border-emerald-700">Rekomendasi Pupuk</th>
+              <th className="py-3 md:py-4 px-4 md:px-6 font-bold uppercase tracking-wider text-xs md:text-sm border-b border-emerald-700 whitespace-nowrap">English Name (WEKA)</th>
+              <th className="py-3 md:py-4 px-4 md:px-6 font-bold uppercase tracking-wider text-xs md:text-sm border-b border-emerald-700 whitespace-nowrap">Nama Tanaman</th>
+              <th className="py-3 md:py-4 px-4 md:px-6 font-bold uppercase tracking-wider text-xs md:text-sm border-b border-emerald-700 whitespace-nowrap">Rentang Toleransi (Dataset)</th>
+              <th className="py-3 md:py-4 px-4 md:px-6 font-bold uppercase tracking-wider text-xs md:text-sm border-b border-emerald-700 whitespace-nowrap">Rekomendasi Pupuk</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-emerald-50">
             {filteredData.length > 0 ? (
               filteredData.map((item, idx) => (
                 <tr key={idx} className="hover:bg-emerald-50/50 transition-colors">
-                  <td className="py-4 px-6 font-mono text-emerald-700 font-bold bg-emerald-50/30">
+                  <td className="py-4 px-4 md:px-6 font-mono text-emerald-700 font-bold bg-emerald-50/30">
                     {item.nama}
                   </td>
-                  <td className="py-4 px-6 font-bold text-gray-800 flex items-center gap-2">
+                  <td className="py-4 px-4 md:px-6 font-bold text-gray-800 flex items-center gap-2">
                     <span className="text-2xl">{item.ikon}</span> {item.nama_lokal}
                   </td>
-                  <td className="py-4 px-6 text-sm text-gray-600">
+                  <td className="py-4 px-4 md:px-6 text-sm text-gray-600">
                     <div><span className="font-semibold">N:</span> {item.kebutuhan_n}</div>
                     <div><span className="font-semibold">P:</span> {item.kebutuhan_p}</div>
                     <div><span className="font-semibold">K:</span> {item.kebutuhan_k}</div>
                     <div><span className="font-semibold text-emerald-600">pH:</span> {item.ph_optimal}</div>
-                    {/* Menampilkan data kelembaban yang sudah ditambahkan di sayuran.js */}
                     <div><span className="font-semibold text-blue-500">Kelembaban:</span> {item.kelembaban || "50 - 70 %"}</div>
                   </td>
-                  <td className="py-4 px-6 text-sm text-gray-700">
+                  <td className="py-4 px-4 md:px-6 text-sm text-gray-700">
                     <p className="font-semibold text-orange-700 mb-1">{item.rekomendasi_pupuk}</p>
                     <p className="text-xs text-gray-500 italic">{item.fungsi_pupuk}</p>
                   </td>
