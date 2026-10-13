@@ -44,7 +44,6 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
     }
   });
 
-  // Urutkan (WEKA di atas, Database di bawah) untuk logika program, tapi tampilannya sama
   daftarTampil.sort((a, b) => {
     if (a.is_fallback_db && !b.is_fallback_db) return 1;
     if (!a.is_fallback_db && b.is_fallback_db) return -1;
@@ -90,7 +89,7 @@ export default function HasilAnalisis({ result, formData, handleReset }) {
         {daftarTampil.map((tanaman, index) => (
           <div key={index} className="bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-emerald-100 overflow-hidden mb-8 relative">
             
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 md:p-8 text-white flex flex-col md:flex-row items-center gap-4 md:gap-6">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 md:p-8 text-white flex flex-col md:flex-row items-center gap-4 md:gap-6 pt-10">
               <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 rounded-2xl flex items-center justify-center text-5xl md:text-6xl shadow-inner backdrop-blur-sm">
                 {tanaman.ikon || '🌱'}
               </div>
