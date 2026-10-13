@@ -200,6 +200,11 @@ Response sukses berisi `tanaman_terpilih_list` (maksimal 3 nama tanaman sesuai l
 - **Konten tanaman** di `sayuran.js` (kebutuhan hara, pupuk, estimasi hasil) adalah panduan umum dan perlu divalidasi pakar pertanian setempat sebelum dijadikan acuan nyata.
 - **Cakupan model.** Hasil rekomendasi terbatas pada 138 tanaman di dataset. Sistem ini alat bantu keputusan awal dan tidak menggantikan uji laboratorium maupun penyuluh pertanian.
 
-## 👥 Tim
+## 👥 Tim **ROOT OR ROTI**
 
-**ROOT OR ROTI** - ICONFEST 2026 Data Mining Competition
+-Nama dan NPM
+1. Najwan Dzimar 257006111081
+2. Faruq Al Jihad Awalia Putra 257006111091
+3. Fazlee Khayru Aozora 257006111066
+
+- ICONFEST 2026 Data Mining Competition
