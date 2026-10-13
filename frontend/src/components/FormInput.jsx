@@ -3,17 +3,28 @@ import React from 'react';
 export default function FormInput({ formData, handleChange, handleSubmit, loading }) {
   const handleNutrientChange = (e) => {
     const { name, value } = e.target;
+    
+    // Izinkan input kosong (agar pengguna bisa menghapus angka dengan backspace)
     if (value === '') {
       handleChange(e);
       return;
     }
-    const parsed = parseFloat(value);
-    if (isNaN(parsed) || parsed < 0 || parsed > 200) {
+    
+    // REGEX MUTLAK: Hanya boleh angka, dan titik desimal maksimal 2 angka di belakangnya
+    // Regex ini secara otomatis memblokir huruf, simbol, dan desimal lebih dari 2 digit (contoh: 2.34 lolos, 2.345 diblokir)
+    if (!/^\d*\.?\d{0,2}$/.test(value)) {
       return;
     }
+    
+    // Mencegah input angka melampaui batas maksimal 200
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && parsed > 200) {
+      return;
+    }
+    
     handleChange(e);
   };
-
+  
   // Fungsi untuk menentukan warna dinamis berdasarkan nilai pH (0-14)
   const getPHColor = (phValue) => {
     const ph = parseFloat(phValue);
@@ -46,11 +57,9 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
             <span className="text-[10px] normal-case font-bold text-emerald-700 bg-emerald-200/60 px-2 py-0.5 rounded-md ml-auto">mg/kg</span>
           </label>
           <input 
-            type="number" 
+            type="text" 
+            inputMode="decimal"
             name="n" 
-            step="any"
-            min="0" 
-            max="200" 
             value={formData.n} 
             onChange={handleNutrientChange} 
             required 
@@ -65,11 +74,9 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
             <span className="text-[10px] normal-case font-bold text-teal-700 bg-teal-200/60 px-2 py-0.5 rounded-md ml-auto">mg/kg</span>
           </label>
           <input 
-            type="number" 
+            type="text" 
+            inputMode="decimal"
             name="p" 
-            step="any"
-            min="0" 
-            max="200" 
             value={formData.p} 
             onChange={handleNutrientChange} 
             required 
@@ -84,11 +91,9 @@ export default function FormInput({ formData, handleChange, handleSubmit, loadin
             <span className="text-[10px] normal-case font-bold text-cyan-700 bg-cyan-200/60 px-2 py-0.5 rounded-md ml-auto">mg/kg</span>
           </label>
           <input 
-            type="number" 
+            type="text" 
+            inputMode="decimal"
             name="k" 
-            step="any"
-            min="0" 
-            max="200" 
             value={formData.k} 
             onChange={handleNutrientChange} 
             required 
